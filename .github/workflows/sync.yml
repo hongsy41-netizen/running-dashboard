@@ -1,0 +1,47 @@
+name: Sync Strava activities
+
+# 시크릿이 설정되어 있을 때만 실제로 갱신한다.
+#   - 공식 API: STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET / STRAVA_REFRESH_TOKEN
+#   - 웹 세션:  STRAVA_COOKIE (_strava4_session=... 값)
+# 어느 쪽도 없으면 데이터를 건드리지 않고 조용히 끝난다.
+
+on:
+  schedule:
+    - cron: '20 22 * * *'      # 매일 07:20 KST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Strava 데이터 동기화
+        env:
+          STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+          STRAVA_COOKIE: ${{ secrets.STRAVA_COOKIE }}
+        run: python3 scripts/sync_strava.py
+
+      - name: 변경분 커밋
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- data; then
+            echo "변경 없음"
+          else
+            git add data
+            git commit -m "chore: Strava 기록 동기화 $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
