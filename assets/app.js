@@ -89,19 +89,24 @@ async function boot() {
     .filter((a) => a.year)
     .sort((a, b) => (a.d < b.d ? 1 : -1));
 
-  renderHeader();
-  renderKpis();
-  renderHeatmapTabs();
-  renderHeatmap(state.heatYear);
-  renderMonthlyYearOptions();
-  renderMonthly(state.monthYear);
-  renderYearly();
-  renderWeekday();
-  renderHour();
-  renderRecords();
-  renderGear();
-  renderListYears();
-  renderList();
+  const errors = [];
+  const safe = (name, fn) => {
+    try { fn(); } catch (e) { errors.push(`${name}: ${e && e.message || e}`); console.error(name, e); }
+  };
+  safe('header', renderHeader);
+  safe('kpis', renderKpis);
+  safe('heatTabs', renderHeatmapTabs);
+  safe('heatmap', () => renderHeatmap(state.heatYear));
+  safe('monthlyYears', renderMonthlyYearOptions);
+  safe('monthly', () => renderMonthly(state.monthYear));
+  safe('yearly', renderYearly);
+  safe('weekday', renderWeekday);
+  safe('hour', renderHour);
+  safe('records', renderRecords);
+  safe('gear', renderGear);
+  safe('listYears', renderListYears);
+  safe('list', renderList);
+  document.body.dataset.renderErrors = errors.join(' | ') || '';
 
   if (state.meta.athleteUrl) $('#stravaLink').href = state.meta.athleteUrl;
 }
