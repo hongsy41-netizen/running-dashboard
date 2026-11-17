@@ -117,32 +117,37 @@ def fit_to_polyline(fit):
                 for _ in range(nf):
                     fields.append((fit[pos], fit[pos + 1]))
                     pos += 3
-                if h & 0x20:                   # developer data
+                devneed = 0
+                if h & 0x20:                   # developer fields (필드마다 3바이트 정의)
                     dn = fit[pos]
                     pos += 1
-                    pos += dn * 3
-                defs[local] = (gnum, fields)
+                    for _ in range(dn):
+                        devneed += fit[pos + 1]
+                        pos += 3
+                defs[local] = (gnum, fields, devneed)
                 continue
             local = (h >> 5) & 0x03 if h & 0x80 else h & 0x0F
             d = defs.get(local)
             if not d:
-                return None
-            gnum, fields = d
-            need = sum(f[1] for f in fields)
+                break
+            gnum, fields, devneed = d
+            need = sum(f[1] for f in fields) + devneed
             payload = fit[pos:pos + need]
             pos += need
-            if gnum == 20 and len(pts) < 20000:
+            if gnum == 20 and len(pts) < 30000:
                 off = 0
                 lat = lng = None
                 for fnum, size in fields:
                     if fnum == 0 and size == 4:
                         v = int.from_bytes(payload[off:off + 4], 'little', signed=True)
-                        lat = v * SEMI
+                        if v != 0x7FFFFFFF:
+                            lat = v * SEMI
                     elif fnum == 1 and size == 4:
                         v = int.from_bytes(payload[off:off + 4], 'little', signed=True)
-                        lng = v * SEMI
+                        if v != 0x7FFFFFFF:
+                            lng = v * SEMI
                     off += size
-                if lat is not None and lng is not None and (lat or lng):
+                if lat is not None and lng is not None and abs(lat) <= 90 and abs(lng) <= 180 and (lat or lng):
                     pts.append((lat, lng))
     except (IndexError, ValueError):
         pass

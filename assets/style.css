@@ -230,6 +230,9 @@ main{padding:22px 0 40px; display:flex; flex-direction:column; gap:18px}
 .modal-stats div{background:var(--panel-2); border:1px solid var(--line-soft); border-radius:11px; padding:10px 12px}
 .modal-stats dt{font-size:11px; color:var(--text-faint); margin-bottom:3px}
 .modal-stats dd{margin:0; font-size:15px; font-weight:750}
+.modal-link{margin:14px 0 0; font-size:13px}
+.modal-link a{color:#ff9757; text-decoration:none; font-weight:600}
+.modal-link a:hover{text-decoration:underline}
 .modal-desc{margin:14px 0 0; font-size:13px; color:var(--text-dim); white-space:pre-wrap; border-top:1px solid var(--line-soft); padding-top:12px}
 .modal-desc[hidden]{display:none}
 

@@ -613,6 +613,7 @@ async function openModal(a) {
 
   const dl = $('#modalStats');
   dl.innerHTML = stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+  $('#modalStrava').href = `https://www.strava.com/activities/${a.id}`;
   $('#modalDesc').hidden = !a.desc;
   $('#modalDesc').textContent = a.desc || '';
 
