@@ -110,9 +110,9 @@ main{padding:22px 0 40px; display:flex; flex-direction:column; gap:18px}
   box-shadow:0 4px 14px rgba(252,82,0,.35);
 }
 .heatmap-scroll{overflow-x:auto; padding-bottom:6px; scrollbar-width:thin}
-.heatmap{display:flex; gap:4px; min-width:max-content; padding:2px}
-.hm-months{display:flex; gap:4px; margin-bottom:6px; padding-left:26px}
-.hm-month{font-size:11px; color:var(--text-faint)}
+.heatmap{display:inline-block; min-width:max-content; padding:2px}
+.hm-months{display:flex; margin-bottom:6px; padding-left:26px}
+.hm-month{font-size:10.5px; color:var(--text-faint); white-space:nowrap; overflow:visible}
 .hm-body{display:flex; gap:4px}
 .hm-daylabels{display:flex; flex-direction:column; gap:4px; width:22px; flex:0 0 auto}
 .hm-daylabels span{height:14px; font-size:9.5px; color:var(--text-faint); line-height:14px}
