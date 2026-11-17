@@ -210,7 +210,7 @@ function renderHeatmap(year) {
     }
     sinceLabel++;
     const s = el('span', 'hm-month', label);
-    s.style.width = '14px'; s.style.flex = '0 0 14px'; s.style.marginRight = '4px';
+    s.style.width = '18px'; s.style.flex = '0 0 18px';
     monthsRow.appendChild(s);
   }
 
@@ -231,7 +231,8 @@ function renderHeatmap(year) {
       const key = `${year}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
       const rec = byDate.get(key);
       const m = rec ? rec.m : 0;
-      const lvl = m === 0 ? 0 : m < HEAT_LEVELS[0] ? 1 : m < HEAT_LEVELS[1] ? 2 : m < HEAT_LEVELS[2] ? 3 : m < HEAT_LEVELS[3] ? 4 : 5;
+      const mk = m / 1000;   // 색 기준은 km
+      const lvl = m === 0 ? 0 : mk < HEAT_LEVELS[0] ? 1 : mk < HEAT_LEVELS[1] ? 2 : mk < HEAT_LEVELS[2] ? 3 : mk < HEAT_LEVELS[3] ? 4 : 5;
       const cell = el('div', `hm-cell lvl${lvl}`);
       cell.setAttribute('data-date', key);
       if (m > 0) {
