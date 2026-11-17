@@ -466,7 +466,8 @@ function renderRecords() {
   const acts = state.acts.filter((a) => num(a.dist) > 0);
   const longest = acts.reduce((b, a) => (km(a.dist) > km(b && b.dist ? b.dist : 0) ? a : b), null);
   const longestT = acts.reduce((b, a) => (num(a.mv) > num(b && b.mv ? b.mv : 0) ? a : b), null);
-  const fast = acts.filter((a) => km(a.dist) >= 5 && a.pace).sort((a, b) => a.pace - b.pace)[0];
+  const fast = acts.filter((a) => km(a.dist) >= 5 && a.pace && a.pace >= 180).sort((a, b) => a.pace - b.pace)[0];
+  const fastest5k = fast;
 
   const byMonth = new Map();
   acts.forEach((a) => {
@@ -497,7 +498,7 @@ function renderRecords() {
   const rows = [
     ['🏅', '최장 거리', longest ? `${fmtKm(longest.dist)} km` : '—', longest ? `${longest.p.date} · ${longest.name}` : ''],
     ['⏱️', '최장 시간', longestT ? fmtDuration(longestT.mv) : '—', longestT ? `${longestT.p.date} · ${fmtKm(longestT.dist)} km` : ''],
-    ['⚡', '최고 평균 페이스', fast ? fmtPace(1000, fast.pace) : '—', fast ? `${fast.p.date} · ${fmtKm(fast.dist)} km` : '5km 이상 기준'],
+    ['⚡', '최고 평균 페이스', fastest5k ? fmtPace(1000, fastest5k.pace) : '—', fastest5k ? `${fastest5k.p.date} · ${fmtKm(fastest5k.dist)} km` : '5km 이상 기준'],
     ['📅', '최다 월간 거리', bestMonth ? `${bestMonth[1].toFixed(0)} km` : '—', bestMonth ? bestMonth[0].replace('-', '년 ') + '월' : ''],
     ['🔥', '최다 주간 거리', bestWeek ? `${bestWeek[1].toFixed(0)} km` : '—', bestWeek ? `${bestWeek[0]} 주` : ''],
     ['🧱', '최장 연속 러닝', best ? `${best}일` : '—', '쉬지 않고 이어간 날'],
@@ -579,7 +580,7 @@ function renderList() {
     const btn = el('button', 'act',
       `<span class="a-date"><b>${a.p.date.slice(5).replace('-', '/')}</b>${WEEKDAYS[a.weekday]} ${String(a.p.h).padStart(2, '0')}:${String(a.p.mi).padStart(2, '0')}</span>
        <span><span class="a-name">${a.name || '러닝'}${badge}</span>
-         <span class="a-meta">${a.p.year}년 · ${a.gear || (a.el ? `고도 ${Math.round(a.el)}m` : '—')}</span></span>
+         <span class="a-meta">${a.year}년 · ${a.gear || (a.el ? `고도 ${Math.round(a.el)}m` : '—')}</span></span>
        <span class="a-dist">${fmtKm(a.dist)} km</span>
        <span class="a-pace">${fmtPace(a.dist, a.mv)}/km<br>${fmtDuration(a.mv)}</span>`);
     btn.addEventListener('click', () => openModal(a));
