@@ -1,0 +1,5 @@
+archive_out/
+raw/
+*.zip
+__pycache__/
+.DS_Store

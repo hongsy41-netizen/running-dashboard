@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>서율아빠의 러닝 · Strava 대시보드</title>
+<meta name="description" content="Strava 러닝 기록을 한눈에 보는 개인 대시보드 — 누적 거리, 히트맵, 페이스 추이, 코스 지도">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏃</text></svg>">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">🏃</span>
+      <div class="brand-text">
+        <h1>서율아빠의 러닝</h1>
+        <p>Strava 러닝 기록 대시보드</p>
+      </div>
+    </div>
+    <div class="header-meta">
+      <span id="lastUpdated" class="updated">불러오는 중…</span>
+      <a class="chip" id="stravaLink" href="https://www.strava.com/dashboard" target="_blank" rel="noopener">Strava에서 보기 ↗</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="app">
+
+  <section class="kpi-grid" id="kpi" aria-label="핵심 요약">
+    <div class="kpi skeleton"></div><div class="kpi skeleton"></div><div class="kpi skeleton"></div>
+    <div class="kpi skeleton"></div><div class="kpi skeleton"></div><div class="kpi skeleton"></div>
+  </section>
+
+  <section class="panel" id="heatmapPanel">
+    <div class="panel-head">
+      <div>
+        <h2>러닝 히트맵</h2>
+        <p class="sub">하루하루 뛴 기록을 잔디처럼. 진할수록 멀리 뛴 날.</p>
+      </div>
+      <div class="year-tabs" id="heatmapYears" role="tablist" aria-label="히트맵 연도"></div>
+    </div>
+    <div class="heatmap-scroll">
+      <div id="heatmap" class="heatmap"></div>
+    </div>
+    <div class="heat-legend">
+      <span class="legend-label">적음</span>
+      <i class="legend-cell lvl0"></i><i class="legend-cell lvl1"></i><i class="legend-cell lvl2"></i>
+      <i class="legend-cell lvl3"></i><i class="legend-cell lvl4"></i><i class="legend-cell lvl5"></i>
+      <span class="legend-label">많음</span>
+      <span class="legend-sum" id="heatmapSummary"></span>
+    </div>
+    <div class="tooltip" id="heatTooltip" hidden></div>
+  </section>
+
+  <div class="two-col">
+    <section class="panel">
+      <div class="panel-head">
+        <div><h2>월별 거리 · 평균 페이스</h2><p class="sub">막대는 거리(km), 선은 평균 페이스(분/km)</p></div>
+        <select id="monthlyYear" class="select" aria-label="연도 선택"></select>
+      </div>
+      <div class="chart-box"><canvas id="chartMonthly" height="260"></canvas></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head">
+        <div><h2>연도별 누적</h2><p class="sub">해마다 쌓인 거리와 페이스</p></div>
+      </div>
+      <div class="chart-box"><canvas id="chartYearly" height="260"></canvas></div>
+    </section>
+  </div>
+
+  <div class="two-col">
+    <section class="panel">
+      <div class="panel-head">
+        <div><h2>요일 · 시간대 패턴</h2><p class="sub">언제, 무슨 요일에 많이 뛰었나</p></div>
+      </div>
+      <div class="chart-box"><canvas id="chartWeekday" height="200"></canvas></div>
+      <div class="chart-box"><canvas id="chartHour" height="200"></canvas></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head">
+        <div><h2>개인 기록</h2><p class="sub">가장 길게, 가장 빠르게</p></div>
+      </div>
+      <ul class="records" id="records"></ul>
+    </section>
+  </div>
+
+  <section class="panel" id="gearPanel" hidden>
+    <div class="panel-head">
+      <div><h2>러닝화별 누적</h2><p class="sub">신발마다 쌓인 거리</p></div>
+    </div>
+    <div class="gear-list" id="gearList"></div>
+  </section>
+
+  <section class="panel" id="activitiesPanel">
+    <div class="panel-head">
+      <div><h2>활동 목록</h2><p class="sub" id="listCount">—</p></div>
+      <div class="filters">
+        <input id="search" class="input" type="search" placeholder="활동 이름 검색 (예: Morning)" aria-label="활동 이름 검색">
+        <select id="listYear" class="select" aria-label="연도 필터"></select>
+      </div>
+    </div>
+    <div id="activityList" class="activity-list"></div>
+    <div class="more-wrap"><button id="loadMore" class="btn">더 보기</button></div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>데이터 출처: <strong>Strava</strong> · 서율아빠 동작 · 저장소의 <code>data/activities.json</code>을 그대로 읽어 브라우저에서 그립니다.</p>
+    <p class="muted" id="footerNote">지도 타일 © Esri · Strava 데이터는 Strava 이용약관에 따라 본인 기록만 표시합니다.</p>
+  </div>
+</footer>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <button class="modal-close" data-close aria-label="닫기">✕</button>
+    <div class="modal-body">
+      <h3 id="modalTitle">—</h3>
+      <p class="modal-sub" id="modalSub"></p>
+      <div class="modal-map" id="modalMap"></div>
+      <p class="map-note" id="mapNote" hidden></p>
+      <dl class="modal-stats" id="modalStats"></dl>
+      <p class="modal-desc" id="modalDesc" hidden></p>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
