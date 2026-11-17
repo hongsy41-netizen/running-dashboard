@@ -408,7 +408,8 @@ function renderYearly() {
         }),
       },
       scales: baseScales({
-        y1: { position: 'right', reverse: true, grid: { display: false }, ticks: { color: '#22d3a6', font: CHART_FONT } },
+        y1: { position: 'right', reverse: true, beginAtZero: false, grid: { display: false },
+              ticks: { color: '#22d3a6', font: CHART_FONT, precision: 1 } },
       }),
     },
   });
