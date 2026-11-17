@@ -295,7 +295,9 @@ function drawChart(id, cfg) {
   const canvas = document.getElementById(id);
   if (!canvas) return;
   if (state.charts[id]) state.charts[id].destroy();
-  state.charts[id] = new Chart(canvas, Object.assign({ options: { responsive: true, maintainAspectRatio: false } }, cfg));
+  const conf = Object.assign({ type: 'bar', options: { responsive: true, maintainAspectRatio: false } }, cfg);
+  if (!conf.type) conf.type = 'bar';
+  state.charts[id] = new Chart(canvas, conf);
 }
 
 /* ── 월별 차트 ─────────────────────────────────────────────── */
@@ -647,8 +649,8 @@ async function openModal(a) {
 }
 
 async function loadPoly(a) {
-  if (!a.p || !a.p.year) return null;
-  const y = a.p.year;
+  const y = a.year || (a.p && a.p.y);
+  if (!y) return null;
   let store = state.polyCache.get(y);
   if (!store) {
     try {
