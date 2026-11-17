@@ -652,7 +652,7 @@ async function loadPoly(a) {
   let store = state.polyCache.get(y);
   if (!store) {
     try {
-      const res = await fetch(POLY_URL(y), { cache: 'force-cache' });
+      const res = await fetch(POLY_URL(y), { cache: 'no-cache' });
       store = res.ok ? await res.json() : {};
     } catch { store = {}; }
     state.polyCache.set(y, store);
