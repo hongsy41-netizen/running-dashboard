@@ -32,8 +32,10 @@ const LIST_DISTS = [
 const LIST_SORTS = [
   { key: 'recent',  label: '최신순',       fn: (a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0) },
   { key: 'longest', label: '최장 거리순',   fn: (a, b) => num(b.dist) - num(a.dist) },
-  { key: 'fastest', label: '빠른 페이스순', fn: (a, b) => (a.pace || 1e9) - (b.pace || 1e9) },
+  { key: 'fastest', label: '빠른 페이스순', fn: (a, b) => paceRank(a) - paceRank(b) },
 ];
+// 페이스 정렬용: 3분/km보다 빠른 값(GPS 오류 등 이상치)은 맨 뒤로
+const paceRank = (a) => (a.pace && a.pace >= MIN_PACE ? a.pace : 1e9);
 
 const state = {
   acts: [],
@@ -842,7 +844,7 @@ function renderHr(year) {
         {
           type: 'line', label: '심박 효율(m/beat)', data: eff.map((v) => (v ? +v.toFixed(3) : null)),
           borderColor: '#0f9d7c', backgroundColor: 'rgba(15,157,124,.10)', borderWidth: 2.5,
-          pointRadius: 3, pointHoverRadius: 5, tension: .35, spanGaps: true, fill: true,
+          pointRadius: 3, pointHoverRadius: 5, tension: .35, spanGaps: true,
           yAxisID: 'y1', order: 1,
         },
       ],
