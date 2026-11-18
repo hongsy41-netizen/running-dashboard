@@ -341,7 +341,7 @@ function initRouteMap() {
   if (!host || typeof L === 'undefined') return;
   routeState.map = L.map('routeMap', { zoomControl: true, attributionControl: true, scrollWheelZoom: true, maxZoom: 16 });
   // 라이트 테마에 맞는 밝은 지도 타일 (Esri Light Gray Canvas · 키 불필요)
-  L.tileLayer(ESRI_LIGHT, { maxZoom: 16, attribution: ESRI_ATTR }).addTo(routeState.map);
+  L.tileLayer(ESRI_LIGHT, { maxZoom: 16, maxNativeZoom: 13, attribution: ESRI_ATTR }).addTo(routeState.map);
   routeState.map.setView([37.55, 126.95], 11);
   routeState.canvas = L.canvas({ padding: 0.4 });
   routeState.layer = L.layerGroup().addTo(routeState.map);
@@ -1099,11 +1099,13 @@ async function loadPolyStore(year) {
 
 function setupMap() {
   if (state.map) return;
-  state.map = L.map('modalMap', { zoomControl: true, attributionControl: true, scrollWheelZoom: true });
+  state.map = L.map('modalMap', { zoomControl: true, attributionControl: true, scrollWheelZoom: true, maxZoom: 14 });
   // 라이트 테마에 맞는 밝은 지도 타일 (Esri Light Gray Canvas · 키 불필요)
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 16,
-    attribution: '지도 © Esri, HERE, Garmin, OpenStreetMap contributors',
+  // 국내에는 13레벨보다 자세한 타일이 없어(그 이상은 "Map data not yet available") 13레벨을 확대해 쓴다.
+  L.tileLayer(ESRI_LIGHT, {
+    maxZoom: 14,
+    maxNativeZoom: 13,
+    attribution: ESRI_ATTR,
   }).addTo(state.map);
   state.map.setView([37.5665, 126.9780], 12);
 }
