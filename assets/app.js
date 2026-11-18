@@ -218,6 +218,8 @@ const RACE_META = [
 ];
 const corosLevel = (s) => COROS_LEVEL[s] || s || '—';
 const corosComment = (s) => COROS_COMMENT[s] || s || '—';
+const COROS_HRV = { Normal: '정상', Low: '낮음', High: '높음', 'Below normal': '정상 이하', 'Above normal': '정상 이상' };
+const corosHrv = (s) => COROS_HRV[s] || s || '—';
 
 // 회복도·부하율 색: 좋음(청록) / 보통(주황) / 주의(빨강)
 function corosTone(pct) {
@@ -262,7 +264,7 @@ async function renderCoros() {
   const hrv = (s.hrv || []).slice(-1)[0];
   const recFoot = [
     rhr ? `안정시 심박 ${rhr.bpm} bpm` : null,
-    hrv ? `HRV ${hrv.avg} ms (${hrv.status || '—'})` : null,
+    hrv ? `HRV ${hrv.avg} ms (${corosHrv(hrv.status)})` : null,
   ].filter(Boolean).join(' · ');
   $('#corosRecovery').innerHTML =
     `<div class="coros-ring tone-${tone.key}" style="--pct:${Math.max(0, Math.min(100, pct))}; --ring:${tone.color}">
