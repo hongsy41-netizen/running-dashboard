@@ -53,7 +53,7 @@ const state = {
 };
 
 // 종합 코스 지도 상태
-const routeState = { key: null, map: null, layer: null, canvas: null, bounds: null, stats: new Map(), token: 0 };
+const routeState = { key: null, map: null, layer: null, canvas: null, bounds: null, pts: [], stats: new Map(), token: 0 };
 
 /* ── 작은 도우미들 ─────────────────────────────────────────── */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -386,6 +386,7 @@ async function drawRouteView(key) {
   routeState.stats.clear();
   routeState.layer.clearLayers();
   routeState.bounds = L.latLngBounds([]);
+  routeState.pts = [];
 
   const status = $('#routeStatus');
   if (status) { status.hidden = false; status.textContent = '불러오는 중…'; }
@@ -409,9 +410,9 @@ async function drawRouteView(key) {
     if (years.length > 1) await raf();           // 화면이 멈추지 않게 한 해씩
   }
   if (token !== routeState.token) return;
-  if (routeState.bounds && routeState.bounds.isValid()) {
-    routeState.map.fitBounds(routeState.bounds, { padding: [22, 22] });
-  }
+  const focus = computeFocusBounds(routeState.pts);
+  if (focus) routeState.map.fitBounds(focus, { padding: [22, 22] });
+  else if (routeState.bounds && routeState.bounds.isValid()) routeState.map.fitBounds(routeState.bounds, { padding: [22, 22] });
   if (status) status.hidden = true;
   updateRouteSummary();
   setTimeout(() => routeState.map && routeState.map.invalidateSize(), 80);
@@ -429,6 +430,7 @@ function drawRouteYear(store, year) {
       interactive: false, lineCap: 'round', lineJoin: 'round',
     }).addTo(routeState.layer);
     routeState.bounds.extend(line.getBounds());
+    for (let i = 0; i < pts.length; i++) routeState.pts.push(pts[i]);
     n++;
     const a = byId.get(String(id));
     if (a) m += num(a.dist);
@@ -438,6 +440,19 @@ function drawRouteYear(store, year) {
 
 function routeCount() { let n = 0; routeState.stats.forEach((s) => { n += s.n; }); return n; }
 function routeDistM() { let m = 0; routeState.stats.forEach((s) => { m += s.m; }); return m; }
+
+// 가장 많이 뛴 지역에 맞춰 지도 열기 (여행지 기록 몇 개가 화면을 통째로 잡아먹지 않도록)
+function computeFocusBounds(pts) {
+  if (!pts || pts.length < 2) return null;
+  const lats = pts.map((p) => p[0]).sort((a, b) => a - b);
+  const lngs = pts.map((p) => p[1]).sort((a, b) => a - b);
+  const mid = (arr) => arr[Math.floor(arr.length / 2)];
+  const cLat = mid(lats), cLng = mid(lngs);
+  const dist = pts.map((p) => Math.hypot((p[0] - cLat) * 111, (p[1] - cLng) * 88)).sort((a, b) => a - b);
+  const radius = Math.max(7, dist[Math.floor(dist.length * 0.85)] || 7);   // km
+  const dLat = radius / 111, dLng = radius / 88;
+  return L.latLngBounds([cLat - dLat, cLng - dLng], [cLat + dLat, cLng + dLng]);
+}
 
 function updateRouteSummary() {
   const box = $('#routeSummary');
