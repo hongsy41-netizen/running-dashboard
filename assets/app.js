@@ -12,6 +12,28 @@ const PAGE_SIZE = 25;
 const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일'];   // 0 = 월요일
 const HEAT_LEVELS = [4, 8, 12, 18, 25];                        // km 기준 색 구간
 const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+const ESRI_LIGHT = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}';
+const ESRI_ATTR = '지도 © Esri, HERE, Garmin, OpenStreetMap contributors';
+const MIN_PACE = 180;                                          // 3분/km 미만은 이상치로 제외
+const GOAL_DEFAULT = { year: 3000, week: 60 };                  // km
+const GOAL_KEY = { year: 'running-dashboard.goalYearKm', week: 'running-dashboard.goalWeekKm' };
+const PR_BRACKETS = [
+  { key: '5k',   label: '5K',   min: 4950,  target: 5000 },
+  { key: '10k',  label: '10K',  min: 9900,  target: 10000 },
+  { key: 'half', label: '하프', min: 21000, target: 21097.5 },
+  { key: 'full', label: '풀',   min: 42000, target: 42195 },
+];
+const LIST_DISTS = [
+  { key: 'all',  label: '전체 거리',  test: () => true },
+  { key: '10',   label: '10km+',      test: (a) => km(a.dist) >= 10 },
+  { key: 'half', label: '하프 21km+', test: (a) => km(a.dist) >= 21 },
+  { key: 'full', label: '풀 42km+',   test: (a) => km(a.dist) >= 42 },
+];
+const LIST_SORTS = [
+  { key: 'recent',  label: '최신순',       fn: (a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0) },
+  { key: 'longest', label: '최장 거리순',   fn: (a, b) => num(b.dist) - num(a.dist) },
+  { key: 'fastest', label: '빠른 페이스순', fn: (a, b) => (a.pace || 1e9) - (b.pace || 1e9) },
+];
 
 const state = {
   acts: [],
@@ -19,18 +41,25 @@ const state = {
   heatYear: null,
   monthYear: null,
   listYear: 'all',
+  listDist: 'all',
+  listSort: 'recent',
   search: '',
   shown: PAGE_SIZE,
+  hrYear: null,
   polyCache: new Map(),
   charts: {},
   map: null,
   mapLayer: null,
 };
 
+// 종합 코스 지도 상태
+const routeState = { key: null, map: null, layer: null, canvas: null, bounds: null, stats: new Map(), token: 0 };
+
 /* ── 작은 도우미들 ─────────────────────────────────────────── */
 const $ = (sel, root = document) => root.querySelector(sel);
 const el = (tag, cls, html) => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
 const num = (v) => (typeof v === 'number' && isFinite(v) ? v : 0);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 function km(m) { return num(m) / 1000; }
 function fmtKm(m) {
@@ -64,6 +93,13 @@ function parseDate(iso) {                          // "2026-11-17T05:17:45+09:00
   return { y: +m[1], mo: +m[2], d: +m[3], h: +m[4], mi: +m[5], date: `${m[1]}-${m[2]}-${m[3]}` };
 }
 const wkIdx = (d) => (new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).getUTCDay() + 6) % 7; // 월=0
+const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function daysBetween(a, b) {                        // b - a (일)
+  const A = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+  const B = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.round((B - A) / 86400000);
+}
+const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
 
 /* ── 데이터 준비 ───────────────────────────────────────────── */
 async function boot() {
@@ -95,6 +131,9 @@ async function boot() {
   };
   safe('header', renderHeader);
   safe('kpis', renderKpis);
+  safe('goals', renderGoals);
+  safe('prs', renderPrBoard);
+  safe('route', () => { renderRoutePanel().catch((e) => console.error('route', e)); });
   safe('heatTabs', renderHeatmapTabs);
   safe('heatmap', () => renderHeatmap(state.heatYear));
   safe('monthlyYears', renderMonthlyYearOptions);
@@ -102,6 +141,8 @@ async function boot() {
   safe('yearly', renderYearly);
   safe('weekday', renderWeekday);
   safe('hour', renderHour);
+  safe('hrYears', renderHrYears);
+  safe('hr', () => renderHr(state.hrYear));
   safe('records', renderRecords);
   safe('gear', renderGear);
   safe('listYears', renderListYears);
@@ -153,6 +194,263 @@ function renderKpis() {
        <div class="value">${c.value}${c.unit ? `<small>${c.unit}</small>` : ''}</div>
        <div class="foot">${c.foot}</div>`));
   });
+}
+
+/* ── 목표 달성률 ───────────────────────────────────────────── */
+function readGoal(kind) {
+  try {
+    const v = Math.round(Number(localStorage.getItem(GOAL_KEY[kind])));
+    if (isFinite(v) && v > 0) return v;
+  } catch { /* 저장소를 못 쓰는 환경 */ }
+  return GOAL_DEFAULT[kind];
+}
+function writeGoal(kind, v) {
+  try { localStorage.setItem(GOAL_KEY[kind], String(v)); } catch { /* 무시 */ }
+}
+const fmtKm1 = (m) => (num(m) / 1000).toLocaleString('ko-KR', { maximumFractionDigits: 1 });
+
+function goalFoot(doneM, goalKm, daysLeft, extra) {
+  const needKm = Math.max(0, goalKm - num(doneM) / 1000);
+  if (needKm <= 0) return `목표 달성 🎉 · ${extra}`;
+  const per = needKm / Math.max(1, daysLeft);
+  const when = daysLeft > 0
+    ? `남은 ${daysLeft}일 · 하루 ${per.toFixed(1)} km씩`
+    : `오늘이 마지막 날 · ${needKm.toFixed(1)} km`;
+  return `${extra} · ${when}`;
+}
+
+function renderGoals() {
+  const grid = $('#goalGrid');
+  if (!grid) return;
+  const now = new Date();
+  const y = now.getFullYear();
+  const dow = wkIdx(now);
+  const ws = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow);
+  const we = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 6);
+  const wsKey = ymd(ws), weKey = ymd(we);
+
+  const yearActs = state.acts.filter((a) => a.year === y);
+  const yearM = yearActs.reduce((s, a) => s + num(a.dist), 0);
+  const weekActs = state.acts.filter((a) => a.p.date >= wsKey && a.p.date <= weKey);
+  const weekM = weekActs.reduce((s, a) => s + num(a.dist), 0);
+  const daysLeftYear = Math.max(0, daysBetween(now, new Date(y, 11, 31)) + 1);
+  const daysLeftWeek = Math.max(0, 6 - dow);
+
+  grid.innerHTML = '';
+  grid.appendChild(goalBlock({
+    kind: 'year',
+    label: `${y}년 목표`,
+    doneM: yearM,
+    goalKm: readGoal('year'),
+    foot: goalFoot(yearM, readGoal('year'), daysLeftYear, `${yearActs.length}회 달림`),
+    step: 100,
+  }));
+  grid.appendChild(goalBlock({
+    kind: 'week',
+    label: '이번 주 목표',
+    doneM: weekM,
+    goalKm: readGoal('week'),
+    foot: goalFoot(weekM, readGoal('week'), daysLeftWeek,
+      `${ws.getMonth() + 1}.${ws.getDate()} ~ ${we.getMonth() + 1}.${we.getDate()} · ${weekActs.length}회`),
+    step: 5,
+  }));
+}
+
+function goalBlock(o) {
+  const wrap = el('div', 'goal');
+  const pct = o.goalKm > 0 ? (num(o.doneM) / (o.goalKm * 1000)) * 100 : 0;
+  const width = Math.max(pct > 0 ? 2 : 0, Math.min(100, pct));
+  const pctText = pct >= 100 ? '달성 🎉' : `${pct.toFixed(1)}%`;
+  wrap.innerHTML =
+    `<div class="goal-head">
+       <span class="goal-label">${o.label}</span>
+       <button class="goal-edit-btn" type="button">목표 ${o.goalKm.toLocaleString('ko-KR')} km 수정</button>
+     </div>
+     <div class="goal-main">
+       <b>${fmtKm1(o.doneM)}</b><span class="goal-of">/ ${o.goalKm.toLocaleString('ko-KR')} km</span>
+       <span class="goal-pct${pct >= 100 ? ' done' : ''}">${pctText}</span>
+     </div>
+     <div class="goal-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(100, pct))}"><i style="width:${width.toFixed(1)}%"></i></div>
+     <div class="goal-foot">${o.foot}</div>`;
+  wrap.querySelector('.goal-edit-btn').addEventListener('click', () => openGoalEditor(wrap, o));
+  return wrap;
+}
+
+function openGoalEditor(wrap, o) {
+  if (wrap.querySelector('.goal-edit')) return;
+  const btn = wrap.querySelector('.goal-edit-btn');
+  btn.hidden = true;
+  const form = el('div', 'goal-edit');
+  form.innerHTML = `<label for="goalInput-${o.kind}">목표</label>
+    <input id="goalInput-${o.kind}" type="number" inputmode="numeric" min="1" max="200000" step="${o.step || 10}" value="${o.goalKm}">
+    <span>km</span>
+    <button type="button" class="goal-save">저장</button>
+    <button type="button" class="goal-cancel">취소</button>`;
+  wrap.appendChild(form);
+  const input = form.querySelector('input');
+  const close = () => { form.remove(); btn.hidden = false; };
+  const save = () => {
+    const v = Math.round(Number(input.value));
+    if (!isFinite(v) || v <= 0) { input.focus(); return; }
+    writeGoal(o.kind, v);
+    renderGoals();
+  };
+  form.querySelector('.goal-save').addEventListener('click', save);
+  form.querySelector('.goal-cancel').addEventListener('click', close);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); save(); }
+    else if (e.key === 'Escape') close();
+  });
+  input.focus();
+  input.select();
+}
+
+/* ── 거리별 개인 기록(PR) ─────────────────────────────────── */
+function renderPrBoard() {
+  const grid = $('#prGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  PR_BRACKETS.forEach((b) => {
+    const pool = state.acts.filter((a) => num(a.dist) >= b.min && a.pace && a.pace >= MIN_PACE);
+    const best = pool.reduce((x, a) => (!x || a.pace < x.pace ? a : x), null);
+    if (!best) {
+      grid.appendChild(el('div', 'pr-card empty',
+        `<span class="pr-top"><span class="pr-label">${b.label}</span></span>
+         <span class="pr-time">—</span><span class="pr-unit">해당 기록 없음</span>`));
+      return;
+    }
+    const est = Math.round(best.pace * (b.target / 1000));
+    const card = el('button', 'pr-card',
+      `<span class="pr-top"><span class="pr-label">${b.label}</span><span class="pr-count">${pool.length.toLocaleString('ko-KR')}개 중 최고</span></span>
+       <span class="pr-time">${fmtDuration(est)}</span>
+       <span class="pr-unit">${(b.target / 1000).toFixed(2)} km 환산 시간</span>
+       <span class="pr-pace">${fmtPace(1000, best.pace)}/km</span>
+       <span class="pr-actual">실제 ${fmtKm(best.dist)} km · ${fmtDuration(best.mv)}</span>
+       <span class="pr-meta">${best.p.date.replace(/-/g, '.')} · ${esc(best.name || '러닝')}</span>`);
+    card.type = 'button';
+    card.title = `${best.name || '러닝'} 상세 보기`;
+    card.addEventListener('click', () => openModal(best));
+    grid.appendChild(card);
+  });
+}
+
+/* ── 종합 코스 지도 ───────────────────────────────────────── */
+function initRouteMap() {
+  if (routeState.map) return;
+  const host = $('#routeMap');
+  if (!host || typeof L === 'undefined') return;
+  routeState.map = L.map('routeMap', { zoomControl: true, attributionControl: true, scrollWheelZoom: true, maxZoom: 16 });
+  // 라이트 테마에 맞는 밝은 지도 타일 (Esri Light Gray Canvas · 키 불필요)
+  L.tileLayer(ESRI_LIGHT, { maxZoom: 16, attribution: ESRI_ATTR }).addTo(routeState.map);
+  routeState.map.setView([37.55, 126.95], 11);
+  routeState.canvas = L.canvas({ padding: 0.4 });
+  routeState.layer = L.layerGroup().addTo(routeState.map);
+}
+
+async function renderRoutePanel() {
+  const box = $('#routeYears');
+  if (!box || typeof L === 'undefined') return;
+  const years = [...new Set(state.acts.map((a) => a.year))].sort((a, b) => b - a);
+  if (!years.length) return;
+  const total = num(state.meta.withPolyline);
+  const tabs = [{ key: 'all', label: `전체 연도${total ? ` (${total.toLocaleString('ko-KR')}개)` : ''}` }]
+    .concat(years.map((y) => ({ key: y, label: String(y) })));
+
+  box.innerHTML = '';
+  tabs.forEach((t) => {
+    const b = el('button', null, t.label);
+    b.setAttribute('role', 'tab');
+    b.dataset.key = String(t.key);
+    b.setAttribute('aria-selected', 'false');
+    b.addEventListener('click', () => selectRouteYear(t.key));
+    box.appendChild(b);
+  });
+  await selectRouteYear(years[0]);   // 기본: 최근 연도부터 가볍게
+}
+
+function selectRouteYear(key) {
+  const box = $('#routeYears');
+  if (box) [...box.children].forEach((c) => c.setAttribute('aria-selected', String(c.dataset.key === String(key))));
+  return drawRouteView(key).catch((e) => {
+    console.error('route', e);
+    const st = $('#routeStatus');
+    if (st) { st.hidden = false; st.textContent = '경로를 그리지 못했어요'; }
+  });
+}
+
+async function drawRouteView(key) {
+  const token = ++routeState.token;
+  initRouteMap();
+  if (!routeState.map) return;
+  routeState.key = key;
+  routeState.stats.clear();
+  routeState.layer.clearLayers();
+  routeState.bounds = L.latLngBounds([]);
+
+  const status = $('#routeStatus');
+  if (status) { status.hidden = false; status.textContent = '불러오는 중…'; }
+
+  const years = key === 'all'
+    ? [...new Set(state.acts.map((a) => a.year))].sort((a, b) => a - b)
+    : [key];
+
+  let done = 0;
+  for (const y of years) {
+    const store = await loadPolyStore(y);
+    if (token !== routeState.token) return;      // 다른 연도를 골랐으면 중단
+    drawRouteYear(store, y);
+    done++;
+    if (status) {
+      status.textContent = key === 'all'
+        ? `${done}/${years.length}년 · ${routeCount().toLocaleString('ko-KR')}개 코스`
+        : `${y}년 경로 ${routeCount().toLocaleString('ko-KR')}개`;
+    }
+    updateRouteSummary();
+    if (years.length > 1) await raf();           // 화면이 멈추지 않게 한 해씩
+  }
+  if (token !== routeState.token) return;
+  if (routeState.bounds && routeState.bounds.isValid()) {
+    routeState.map.fitBounds(routeState.bounds, { padding: [22, 22] });
+  }
+  if (status) status.hidden = true;
+  updateRouteSummary();
+  setTimeout(() => routeState.map && routeState.map.invalidateSize(), 80);
+}
+
+function drawRouteYear(store, year) {
+  const byId = new Map();
+  state.acts.forEach((a) => { if (a.year === year) byId.set(String(a.id), a); });
+  let n = 0, m = 0;
+  Object.keys(store || {}).forEach((id) => {
+    const pts = decodePolyline(store[id]);
+    if (pts.length < 2) return;
+    const line = L.polyline(pts, {
+      renderer: routeState.canvas, color: '#fc5200', weight: 1.6, opacity: 0.17,
+      interactive: false, lineCap: 'round', lineJoin: 'round',
+    }).addTo(routeState.layer);
+    routeState.bounds.extend(line.getBounds());
+    n++;
+    const a = byId.get(String(id));
+    if (a) m += num(a.dist);
+  });
+  routeState.stats.set(year, { n, m });
+}
+
+function routeCount() { let n = 0; routeState.stats.forEach((s) => { n += s.n; }); return n; }
+function routeDistM() { let m = 0; routeState.stats.forEach((s) => { m += s.m; }); return m; }
+
+function updateRouteSummary() {
+  const box = $('#routeSummary');
+  if (!box) return;
+  const years = [...routeState.stats.keys()].sort((a, b) => a - b);
+  const label = routeState.key === 'all'
+    ? `전체 ${years.length}년 (${years.length > 1 ? `${years[0]}–${years[years.length - 1]}` : years[0]})`
+    : `${routeState.key}년`;
+  box.innerHTML =
+    `<span><b>${label}</b></span>
+     <span>코스 <b>${routeCount().toLocaleString('ko-KR')}</b>개</span>
+     <span>합계 <b>${fmtKm(routeDistM())}</b> km</span>
+     <span class="rs-legend"><i></i><i></i><i></i>겹칠수록 진하게</span>`;
 }
 
 /* ── 히트맵 ───────────────────────────────────────────────── */
@@ -465,6 +763,110 @@ function renderHour() {
   });
 }
 
+/* ── 심박 · 유산소 효율 ───────────────────────────────────── */
+function renderHrYears() {
+  const years = [...new Set(state.acts.filter((a) => num(a.hr) > 0).map((a) => a.year))].sort((a, b) => b - a);
+  const sel = $('#hrYear');
+  if (!sel || !years.length) return;
+  const nowY = new Date().getFullYear();
+  state.hrYear = years.includes(nowY) ? nowY : years[0];
+  sel.innerHTML = '';
+  years.forEach((y) => {
+    const o = el('option', null, `${y}년`);
+    o.value = y;
+    if (y === state.hrYear) o.selected = true;
+    sel.appendChild(o);
+  });
+  sel.onchange = () => { state.hrYear = +sel.value; renderHr(state.hrYear); };
+}
+
+function renderHr(year) {
+  if (!document.getElementById('chartHr')) return;
+  const acts = state.acts.filter((a) => a.year === year && num(a.dist) > 0);
+  const withHr = acts.filter((a) => num(a.hr) > 0 && num(a.mv) > 0);   // 심박 없는 활동은 제외
+  const hrSum = new Array(12).fill(0), hrN = new Array(12).fill(0);
+  const effSum = new Array(12).fill(0), effN = new Array(12).fill(0);
+  const paceSum = new Array(12).fill(0), paceN = new Array(12).fill(0);
+
+  withHr.forEach((a) => {
+    const i = a.month - 1;
+    hrSum[i] += num(a.hr); hrN[i] += 1;
+    const eff = num(a.dist) / ((num(a.mv) / 60) * num(a.hr));          // 이동거리(m) ÷ 심박수 = m/beat
+    if (isFinite(eff) && eff > 0) { effSum[i] += eff; effN[i] += 1; }
+    if (a.pace) { paceSum[i] += a.pace * km(a.dist); paceN[i] += km(a.dist); }
+  });
+
+  const avgHr = hrSum.map((s, i) => (hrN[i] ? s / hrN[i] : null));
+  const eff = effSum.map((s, i) => (effN[i] ? s / effN[i] : null));
+  const pace = paceSum.map((s, i) => (paceN[i] ? s / paceN[i] : null));
+
+  const meanHr = withHr.length ? withHr.reduce((s, a) => s + num(a.hr), 0) / withHr.length : null;
+  let bestIdx = -1;
+  eff.forEach((v, i) => { if (v != null && (bestIdx < 0 || v > eff[bestIdx])) bestIdx = i; });
+  const totM = withHr.reduce((s, a) => s + num(a.dist), 0);
+  const totS = withHr.reduce((s, a) => s + num(a.mv), 0);
+
+  const stats = $('#hrStats');
+  if (stats) {
+    stats.innerHTML =
+      `<span>심박 기록 <b>${withHr.length.toLocaleString('ko-KR')}</b> / ${acts.length.toLocaleString('ko-KR')}회 활동</span>` +
+      (meanHr ? `<span>연평균 심박 <b>${Math.round(meanHr)}</b> bpm</span>` : '') +
+      (totM ? `<span>평균 페이스 <b>${fmtPace(totM, totS)}</b>/km</span>` : '') +
+      (bestIdx >= 0 ? `<span>효율 가장 좋은 달 <b>${MONTHS[bestIdx]}</b> · ${eff[bestIdx].toFixed(2)} m/beat</span>` : '');
+  }
+
+  drawChart('chartHr', {
+    data: {
+      labels: MONTHS,
+      datasets: [
+        {
+          type: 'bar', label: '평균 심박(bpm)', data: avgHr.map((v) => (v ? +v.toFixed(0) : null)),
+          backgroundColor: 'rgba(214,69,69,.5)', hoverBackgroundColor: 'rgba(214,69,69,.78)',
+          borderRadius: 6, borderSkipped: false, yAxisID: 'y', order: 2,
+        },
+        {
+          type: 'line', label: '심박 효율(m/beat)', data: eff.map((v) => (v ? +v.toFixed(3) : null)),
+          borderColor: '#0f9d7c', backgroundColor: 'rgba(15,157,124,.10)', borderWidth: 2.5,
+          pointRadius: 3, pointHoverRadius: 5, tension: .35, spanGaps: true, fill: true,
+          yAxisID: 'y1', order: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#566173', boxWidth: 10, boxHeight: 10, font: CHART_FONT } },
+        tooltip: Object.assign({}, TOOLTIP, {
+          callbacks: {
+            label: (c) => {
+              if (c.parsed.y == null) return `${c.dataset.label} —`;
+              if (c.dataset.label.includes('효율')) return `심박 효율 ${c.parsed.y.toFixed(2)} m/beat`;
+              return `평균 심박 ${Math.round(c.parsed.y)} bpm (${hrN[c.dataIndex]}회)`;
+            },
+            footer: (items) => {
+              const i = items[0] ? items[0].dataIndex : -1;
+              return i >= 0 && pace[i] ? `평균 페이스 ${fmtPace(1000, pace[i])}/km` : '';
+            },
+          },
+        }),
+      },
+      scales: {
+        x: { grid: { color: 'rgba(17,24,39,.07)' }, ticks: { color: '#5d6779', font: CHART_FONT } },
+        y: {
+          position: 'left', beginAtZero: false, suggestedMin: 110,
+          title: { display: true, text: 'bpm', color: '#b04a4a', font: CHART_FONT },
+          grid: { color: 'rgba(17,24,39,.07)' }, ticks: { color: '#5d6779', font: CHART_FONT },
+        },
+        y1: {
+          position: 'right', beginAtZero: false,
+          title: { display: true, text: 'm/beat', color: '#0f9d7c', font: CHART_FONT },
+          grid: { display: false }, ticks: { color: '#0f9d7c', font: CHART_FONT, precision: 2 },
+        },
+      },
+    },
+  });
+}
+
 /* ── 개인 기록 ─────────────────────────────────────────────── */
 function renderRecords() {
   const acts = state.acts.filter((a) => num(a.dist) > 0);
@@ -555,25 +957,37 @@ function renderListYears() {
     state.shown = PAGE_SIZE;
     renderList();
   });
+  const dist = $('#listDist');
+  if (dist) dist.onchange = () => { state.listDist = dist.value; state.shown = PAGE_SIZE; renderList(); };
+  const sort = $('#listSort');
+  if (sort) sort.onchange = () => { state.listSort = sort.value; state.shown = PAGE_SIZE; renderList(); };
   $('#loadMore').addEventListener('click', () => { state.shown += PAGE_SIZE; renderList(); });
 }
 
 function filteredActs() {
-  return state.acts.filter((a) => {
+  const distRule = (LIST_DISTS.find((d) => d.key === state.listDist) || LIST_DISTS[0]).test;
+  const list = state.acts.filter((a) => {
     if (state.listYear !== 'all' && String(a.year) !== String(state.listYear)) return false;
+    if (!distRule(a)) return false;
     if (state.search) {
       const hay = `${a.name || ''} ${a.sport || ''} ${a.gear || ''}`.toLowerCase();
       if (!hay.includes(state.search)) return false;
     }
     return true;
   });
+  const sortRule = (LIST_SORTS.find((s) => s.key === state.listSort) || LIST_SORTS[0]).fn;
+  return list.sort(sortRule);
 }
 
 function renderList() {
   const list = filteredActs();
   const box = $('#activityList');
   box.innerHTML = '';
-  $('#listCount').textContent = `${list.length.toLocaleString('ko-KR')}개 활동 · 최근 순`;
+  const sortLabel = (LIST_SORTS.find((s) => s.key === state.listSort) || LIST_SORTS[0]).label;
+  const distLabel = (LIST_DISTS.find((d) => d.key === state.listDist) || LIST_DISTS[0]).label;
+  const notes = [sortLabel];
+  if (state.listDist !== 'all') notes.push(distLabel);
+  $('#listCount').textContent = `${list.length.toLocaleString('ko-KR')}개 활동 · ${notes.join(' · ')}`;
   if (!list.length) {
     box.innerHTML = `<div class="empty-state">조건에 맞는 활동이 없어요.</div>`;
     $('#loadMore').hidden = true;
@@ -652,16 +1066,20 @@ async function openModal(a) {
 async function loadPoly(a) {
   const y = a.year || (a.p && a.p.y);
   if (!y) return null;
-  let store = state.polyCache.get(y);
-  if (!store) {
-    try {
-      const res = await fetch(POLY_URL(y), { cache: 'no-cache' });
-      store = res.ok ? await res.json() : {};
-    } catch { store = {}; }
-    state.polyCache.set(y, store);
-  }
+  const store = await loadPolyStore(y);
   const s = store[a.id];
   return s ? decodePolyline(s) : null;
+}
+
+async function loadPolyStore(year) {
+  let store = state.polyCache.get(year);
+  if (store) return store;
+  try {
+    const res = await fetch(POLY_URL(year), { cache: 'no-cache' });
+    store = res.ok ? await res.json() : {};
+  } catch { store = {}; }
+  state.polyCache.set(year, store);
+  return store;
 }
 
 function setupMap() {

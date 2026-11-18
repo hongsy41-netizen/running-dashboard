@@ -260,12 +260,98 @@ code{background:var(--panel-2); border:1px solid var(--line-soft); border-radius
 }
 .leaflet-bar a:hover{background:var(--accent-soft) !important; color:var(--accent) !important}
 
+/* ── 목표 달성률 ───────────────────────────────────────────── */
+.goal-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+.goal{background:var(--panel-2); border:1px solid var(--line-soft); border-radius:14px; padding:15px 16px; min-width:0}
+.goal-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px}
+.goal-label{font-size:12.5px; font-weight:700; color:var(--text-dim)}
+.goal-edit-btn{
+  font-family:inherit; font-size:11.5px; font-weight:650; color:var(--accent);
+  background:#fff; border:1px solid var(--line); border-radius:999px; padding:4px 10px;
+  cursor:pointer; transition:.15s; white-space:nowrap;
+}
+.goal-edit-btn:hover{background:var(--accent-soft); border-color:rgba(252,82,0,.4)}
+.goal-edit-btn[hidden]{display:none}
+.goal-main{display:flex; align-items:baseline; gap:7px; flex-wrap:wrap}
+.goal-main b{font-size:25px; font-weight:800; letter-spacing:-.03em; line-height:1.1}
+.goal-of{font-size:12.5px; color:var(--text-dim); font-weight:600}
+.goal-pct{margin-left:auto; font-size:13.5px; font-weight:800; color:var(--accent); white-space:nowrap}
+.goal-pct.done{color:var(--accent-2)}
+.goal-bar{height:10px; border-radius:999px; background:#e6eaf0; overflow:hidden; margin:9px 0 7px}
+.goal-bar i{display:block; height:100%; border-radius:999px; background:linear-gradient(90deg, var(--accent), #ffa06b); transition:width .5s ease}
+.goal-foot{font-size:11.5px; color:var(--text-faint)}
+.goal-edit{display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:10px; padding-top:10px; border-top:1px solid var(--line-soft)}
+.goal-edit label{font-size:12px; color:var(--text-dim)}
+.goal-edit input{
+  width:104px; background:#fff; border:1px solid var(--line); border-radius:9px;
+  padding:6px 9px; font-size:13px; font-family:inherit; color:var(--text);
+}
+.goal-edit input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(252,82,0,.14)}
+.goal-edit span{font-size:12px; color:var(--text-dim)}
+.goal-save,.goal-cancel{
+  font-family:inherit; font-size:12px; font-weight:650; border-radius:9px; padding:6px 12px;
+  cursor:pointer; border:1px solid var(--line); background:#fff; color:var(--text);
+}
+.goal-save{background:var(--accent); border-color:transparent; color:#fff}
+.goal-save:hover{background:#e64a00}
+
+/* ── 거리별 PR ─────────────────────────────────────────────── */
+.pr-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:12px}
+.pr-card{
+  display:flex; flex-direction:column; align-items:flex-start; gap:1px;
+  text-align:left; font-family:inherit; color:inherit; cursor:pointer; width:100%;
+  background:linear-gradient(180deg, #fff, var(--panel-2));
+  border:1px solid var(--line); border-radius:14px; padding:14px 15px;
+  transition:.15s; box-shadow:0 1px 2px rgba(16,24,40,.03);
+}
+.pr-card:hover{border-color:rgba(252,82,0,.4); transform:translateY(-2px); background:var(--accent-soft); box-shadow:var(--shadow-hover)}
+.pr-card.empty{cursor:default; opacity:.75}
+.pr-card.empty:hover{transform:none; background:linear-gradient(180deg,#fff,var(--panel-2)); border-color:var(--line)}
+.pr-top{display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%}
+.pr-label{font-size:11.5px; font-weight:800; color:#c4400a; background:var(--accent-soft); border-radius:6px; padding:2px 7px}
+.pr-card:hover .pr-label{background:#fff}
+.pr-count{font-size:10.5px; color:var(--text-faint); white-space:nowrap}
+.pr-time{font-size:24px; font-weight:800; letter-spacing:-.03em; margin-top:9px; line-height:1.1}
+.pr-unit{font-size:10.5px; color:var(--text-faint)}
+.pr-pace{font-size:13px; font-weight:750; color:var(--accent-2); margin-top:6px}
+.pr-actual{font-size:11.5px; color:var(--text-dim); margin-top:2px}
+.pr-meta{font-size:10.5px; color:var(--text-faint); margin-top:5px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+/* ── 종합 코스 지도 ───────────────────────────────────────── */
+.route-wrap{position:relative}
+.route-map{height:420px; border-radius:13px; overflow:hidden; border:1px solid var(--line); background:var(--bg-soft)}
+.route-map.leaflet-container{z-index:0}
+.route-status{
+  position:absolute; left:12px; bottom:12px; z-index:5; pointer-events:none;
+  background:rgba(255,255,255,.94); border:1px solid var(--line); border-radius:999px;
+  padding:4px 11px; font-size:11.5px; color:var(--text-dim); box-shadow:0 2px 8px rgba(16,24,40,.1);
+}
+.route-status[hidden]{display:none}
+.route-summary{display:flex; flex-wrap:wrap; align-items:center; gap:6px 16px; margin-top:12px; font-size:12.5px; color:var(--text-dim)}
+.route-summary b{color:var(--text); font-weight:750}
+.route-summary .rs-legend{display:inline-flex; align-items:center; gap:3px; margin-left:auto; color:var(--text-faint); font-size:11.5px}
+.rs-legend i{display:inline-block; width:18px; height:3px; border-radius:2px; background:#fc5200}
+.rs-legend i:nth-child(1){opacity:.2}
+.rs-legend i:nth-child(2){opacity:.45}
+.rs-legend i:nth-child(3){opacity:.8; margin-right:5px}
+
+/* ── 심박 ─────────────────────────────────────────────────── */
+.hr-stats{display:flex; flex-wrap:wrap; gap:6px 18px; margin-bottom:12px; font-size:12px; color:var(--text-dim)}
+.hr-stats b{color:var(--text); font-weight:750}
+
 /* ── 반응형 ───────────────────────────────────────────────── */
 @media (max-width: 980px){
   .kpi-grid{grid-template-columns:repeat(3, 1fr)}
   .two-col{grid-template-columns:1fr}
+  .pr-grid{grid-template-columns:repeat(2, 1fr)}
 }
 @media (max-width: 640px){
+  .goal-grid{grid-template-columns:1fr}
+  .route-map{height:320px}
+  .goal-main b{font-size:22px}
+  .pr-time{font-size:21px}
+  .route-summary{font-size:11.5px; gap:4px 12px}
+  .route-summary .rs-legend{margin-left:0}
   body{font-size:14.5px}
   .wrap{width:calc(100% - 24px)}
   main{padding:16px 0 32px; gap:14px}

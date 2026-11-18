@@ -9,7 +9,7 @@
 <meta name="color-scheme" content="light">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏃</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="assets/style.css?v=12">
+<link rel="stylesheet" href="assets/style.css?v=13">
 </head>
 <body>
 
@@ -34,6 +34,41 @@
   <section class="kpi-grid" id="kpi" aria-label="핵심 요약">
     <div class="kpi skeleton"></div><div class="kpi skeleton"></div><div class="kpi skeleton"></div>
     <div class="kpi skeleton"></div><div class="kpi skeleton"></div><div class="kpi skeleton"></div>
+  </section>
+
+  <section class="panel" id="goalsPanel" aria-label="목표 달성률">
+    <div class="panel-head">
+      <div>
+        <h2>목표 달성률</h2>
+        <p class="sub">올해·이번 주 목표까지 얼마나 남았나. 목표 숫자를 눌러 직접 바꿀 수 있어요.</p>
+      </div>
+    </div>
+    <div class="goal-grid" id="goalGrid"></div>
+  </section>
+
+  <section class="panel" id="prPanel">
+    <div class="panel-head">
+      <div>
+        <h2>거리별 개인 기록</h2>
+        <p class="sub">5K · 10K · 하프 · 풀 — 구간별 가장 빠른 러닝. 카드를 누르면 그 활동이 열립니다. <span class="sub-note">표준 거리 환산 시간</span></p>
+      </div>
+    </div>
+    <div class="pr-grid" id="prGrid"></div>
+  </section>
+
+  <section class="panel" id="routePanel">
+    <div class="panel-head">
+      <div>
+        <h2>전체 코스 한눈에 보기</h2>
+        <p class="sub">연도를 골라 GPS 경로를 겹쳐 봅니다. 같은 길을 많이 뛸수록 진하게 남습니다.</p>
+      </div>
+      <div class="year-tabs" id="routeYears" role="tablist" aria-label="코스 지도 연도"></div>
+    </div>
+    <div class="route-wrap">
+      <div id="routeMap" class="route-map"></div>
+      <div class="route-status" id="routeStatus">불러오는 중…</div>
+    </div>
+    <div class="route-summary" id="routeSummary"></div>
   </section>
 
   <section class="panel" id="heatmapPanel">
@@ -89,6 +124,18 @@
     </section>
   </div>
 
+  <section class="panel" id="hrPanel">
+    <div class="panel-head">
+      <div>
+        <h2>심박 · 유산소 효율</h2>
+        <p class="sub">월별 평균 심박과 페이스/심박(심박 한 번에 나아간 거리). 심박 기록이 없는 활동은 빼고 계산합니다.</p>
+      </div>
+      <select id="hrYear" class="select" aria-label="심박 차트 연도"></select>
+    </div>
+    <div class="hr-stats" id="hrStats"></div>
+    <div class="chart-box"><canvas id="chartHr" height="280"></canvas></div>
+  </section>
+
   <section class="panel" id="gearPanel" hidden>
     <div class="panel-head">
       <div><h2>러닝화별 누적</h2><p class="sub">신발마다 쌓인 거리</p></div>
@@ -102,6 +149,17 @@
       <div class="filters">
         <input id="search" class="input" type="search" placeholder="활동 이름 검색 (예: Morning)" aria-label="활동 이름 검색">
         <select id="listYear" class="select" aria-label="연도 필터"></select>
+        <select id="listDist" class="select" aria-label="거리 구간 필터">
+          <option value="all">전체 거리</option>
+          <option value="10">10km+</option>
+          <option value="half">하프 21km+</option>
+          <option value="full">풀 42km+</option>
+        </select>
+        <select id="listSort" class="select" aria-label="정렬 기준">
+          <option value="recent">최신순</option>
+          <option value="longest">최장 거리순</option>
+          <option value="fastest">빠른 페이스순</option>
+        </select>
       </div>
     </div>
     <div id="activityList" class="activity-list"></div>
@@ -135,6 +193,6 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="assets/app.js?v=19"></script>
+<script src="assets/app.js?v=20"></script>
 </body>
 </html>
