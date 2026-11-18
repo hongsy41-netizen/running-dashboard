@@ -276,16 +276,16 @@ function moveTip(e) {
 const CHART_FONT = { family: 'system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif', size: 11 };
 function baseScales(extra = {}) {
   return Object.assign({
-    x: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#8b95a7', font: CHART_FONT } },
-    y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#8b95a7', font: CHART_FONT }, beginAtZero: true },
+    x: { grid: { color: 'rgba(17,24,39,.07)' }, ticks: { color: '#5d6779', font: CHART_FONT } },
+    y: { grid: { color: 'rgba(17,24,39,.07)' }, ticks: { color: '#5d6779', font: CHART_FONT }, beginAtZero: true },
   }, extra);
 }
 const TOOLTIP = {
-  backgroundColor: '#0a0d13',
-  borderColor: '#232a36',
+  backgroundColor: '#ffffff',
+  borderColor: '#e3e7ee',
   borderWidth: 1,
-  titleColor: '#fff',
-  bodyColor: '#b6c0d1',
+  titleColor: '#131a26',
+  bodyColor: '#4c5666',
   padding: 10,
   cornerRadius: 9,
   titleFont: CHART_FONT,
@@ -336,7 +336,7 @@ function renderMonthly(year) {
         },
         {
           type: 'line', label: '평균 페이스', data: pace.map((p) => (p ? +(p / 60).toFixed(2) : null)),
-          borderColor: '#22d3a6', backgroundColor: '#22d3a6', borderWidth: 2.5,
+          borderColor: '#0f9d7c', backgroundColor: '#0f9d7c', borderWidth: 2.5,
           pointRadius: 3, pointHoverRadius: 5, tension: .35, spanGaps: true,
           yAxisID: 'y1', order: 1,
         },
@@ -345,7 +345,7 @@ function renderMonthly(year) {
     options: {
       responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { labels: { color: '#9aa6b8', boxWidth: 10, boxHeight: 10, font: CHART_FONT } },
+        legend: { labels: { color: '#566173', boxWidth: 10, boxHeight: 10, font: CHART_FONT } },
         tooltip: Object.assign({}, TOOLTIP, {
           callbacks: {
             label: (c) => {
@@ -360,10 +360,10 @@ function renderMonthly(year) {
         }),
       },
       scales: baseScales({
-        y: { position: 'left', title: { display: true, text: 'km', color: '#6b7688', font: CHART_FONT },
-             grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#8b95a7', font: CHART_FONT }, beginAtZero: true },
-        y1: { position: 'right', reverse: true, title: { display: true, text: "페이스 (분/km)", color: '#22d3a6', font: CHART_FONT },
-              grid: { display: false }, ticks: { color: '#22d3a6', font: CHART_FONT }, beginAtZero: false },
+        y: { position: 'left', title: { display: true, text: 'km', color: '#7c8798', font: CHART_FONT },
+             grid: { color: 'rgba(17,24,39,.07)' }, ticks: { color: '#5d6779', font: CHART_FONT }, beginAtZero: true },
+        y1: { position: 'right', reverse: true, title: { display: true, text: "페이스 (분/km)", color: '#0f9d7c', font: CHART_FONT },
+              grid: { display: false }, ticks: { color: '#0f9d7c', font: CHART_FONT }, beginAtZero: false },
       }),
     },
   });
@@ -383,16 +383,16 @@ function renderYearly() {
       labels: years.map((y) => `${y}`),
       datasets: [
         { type: 'bar', label: '연간 거리(km)', data: years.map((y) => +byYear.get(y).m.toFixed(1)),
-          backgroundColor: 'rgba(91,141,239,.7)', hoverBackgroundColor: '#5b8def', borderRadius: 6, order: 2 },
+          backgroundColor: 'rgba(59,111,212,.68)', hoverBackgroundColor: '#3b6fd4', borderRadius: 6, order: 2 },
         { type: 'line', label: '평균 페이스', data: years.map((y) => {
             const r = byYear.get(y); const p = paceSec(r.m * 1000, r.s); return p ? +(p / 60).toFixed(2) : null;
-          }), borderColor: '#22d3a6', borderWidth: 2.5, pointRadius: 3, tension: .35, yAxisID: 'y1', order: 1 },
+          }), borderColor: '#0f9d7c', borderWidth: 2.5, pointRadius: 3, tension: .35, yAxisID: 'y1', order: 1 },
       ],
     },
     options: {
       responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { labels: { color: '#9aa6b8', boxWidth: 10, boxHeight: 10, font: CHART_FONT } },
+        legend: { labels: { color: '#566173', boxWidth: 10, boxHeight: 10, font: CHART_FONT } },
         tooltip: Object.assign({}, TOOLTIP, {
           callbacks: {
             label: (c) => {
@@ -409,7 +409,7 @@ function renderYearly() {
       },
       scales: baseScales({
         y1: { position: 'right', reverse: true, beginAtZero: false, grid: { display: false },
-              ticks: { color: '#22d3a6', font: CHART_FONT, precision: 1 } },
+              ticks: { color: '#0f9d7c', font: CHART_FONT, precision: 1 } },
       }),
     },
   });
@@ -423,14 +423,14 @@ function renderWeekday() {
     data: {
       labels: WEEKDAYS.map((w) => `${w}요일`),
       datasets: [{ label: '거리(km)', data: dist.map((v) => +v.toFixed(1)),
-        backgroundColor: dist.map((_, i) => (i >= 5 ? 'rgba(252,82,0,.8)' : 'rgba(91,141,239,.7)')),
+        backgroundColor: dist.map((_, i) => (i >= 5 ? 'rgba(252,82,0,.8)' : 'rgba(59,111,212,.68)')),
         borderRadius: 6 }],
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        title: { display: true, text: '요일별 누적 거리', align: 'start', color: '#8b95a7', font: Object.assign({ size: 12 }, CHART_FONT) },
+        title: { display: true, text: '요일별 누적 거리', align: 'start', color: '#5d6779', font: Object.assign({ size: 12 }, CHART_FONT) },
         tooltip: Object.assign({}, TOOLTIP, { callbacks: {
           label: (c) => `${c.parsed.y} km · ${cnt[c.dataIndex]}회 (평균 ${(dist[c.dataIndex] / Math.max(cnt[c.dataIndex], 1)).toFixed(1)} km)` } }),
       },
@@ -450,13 +450,13 @@ function renderHour() {
     data: {
       labels: buckets.map((b) => b[2]),
       datasets: [{ label: '러닝 횟수', data: cnt,
-        backgroundColor: 'rgba(34,211,166,.65)', hoverBackgroundColor: '#22d3a6', borderRadius: 6 }],
+        backgroundColor: 'rgba(15,157,124,.72)', hoverBackgroundColor: '#0f9d7c', borderRadius: 6 }],
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        title: { display: true, text: '시간대별 러닝 횟수', align: 'start', color: '#8b95a7', font: Object.assign({ size: 12 }, CHART_FONT) },
+        title: { display: true, text: '시간대별 러닝 횟수', align: 'start', color: '#5d6779', font: Object.assign({ size: 12 }, CHART_FONT) },
         tooltip: Object.assign({}, TOOLTIP, { callbacks: {
           label: (c) => `${c.parsed.y}회 · ${dist[c.dataIndex].toFixed(0)} km` } }),
       },
@@ -631,8 +631,8 @@ async function openModal(a) {
 
   if (poly && poly.length > 1) {
     const layer = L.polyline(poly, { color: '#fc5200', weight: 4, opacity: .95 }).addTo(state.map);
-    const start = L.circleMarker(poly[0], { radius: 5, color: '#22d3a6', fillColor: '#22d3a6', fillOpacity: 1 }).addTo(state.map);
-    const end = L.circleMarker(poly[poly.length - 1], { radius: 5, color: '#5b8def', fillColor: '#5b8def', fillOpacity: 1 }).addTo(state.map);
+    const start = L.circleMarker(poly[0], { radius: 5, color: '#0f9d7c', fillColor: '#0f9d7c', fillOpacity: 1 }).addTo(state.map);
+    const end = L.circleMarker(poly[poly.length - 1], { radius: 5, color: '#3b6fd4', fillColor: '#3b6fd4', fillOpacity: 1 }).addTo(state.map);
     state.mapLayer = L.layerGroup([layer, start, end]).addTo(state.map);
     state.map.fitBounds(layer.getBounds(), { padding: [24, 24] });
   } else if (a.map) {
@@ -667,8 +667,10 @@ async function loadPoly(a) {
 function setupMap() {
   if (state.map) return;
   state.map = L.map('modalMap', { zoomControl: true, attributionControl: true, scrollWheelZoom: true });
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 18, attribution: '지도 © Esri, HERE, Garmin, OpenStreetMap contributors',
+  // 라이트 테마에 맞는 밝은 지도 타일 (CartoDB Positron · OpenStreetMap 기반)
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd', maxZoom: 20,
+    attribution: '지도 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
   }).addTo(state.map);
   state.map.setView([37.5665, 126.9780], 12);
 }

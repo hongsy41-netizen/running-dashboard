@@ -27,7 +27,7 @@ GPS 좌표가 없는 실내(트레드밀) 러닝은 지도 대신 안내 문구�
 
 ```
 index.html               화면
-assets/style.css         다크 테마 스타일
+assets/style.css         라이트 테마 스타일
 assets/app.js            데이터 로딩·차트·히트맵·목록·모달
 data/activities.json     활동 요약 (러닝만)
 data/polylines/<연도>.json   활동 id → 인코딩 polyline (지도용, 연도별로 지연 로딩)
