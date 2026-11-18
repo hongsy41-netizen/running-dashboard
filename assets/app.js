@@ -7,6 +7,7 @@
 'use strict';
 
 const DATA_URL = 'data/activities.json';
+const COROS_URL = 'data/coros-status.json';
 const POLY_URL = (year) => `data/polylines/${year}.json`;
 const PAGE_SIZE = 25;
 const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일'];   // 0 = 월요일
@@ -50,6 +51,7 @@ const state = {
   hrYear: null,
   polyCache: new Map(),
   charts: {},
+  coros: null,
   map: null,
   mapLayer: null,
 };
@@ -133,6 +135,7 @@ async function boot() {
   };
   safe('header', renderHeader);
   safe('kpis', renderKpis);
+  safe('coros', () => { renderCoros().catch((e) => console.error('coros', e)); });
   safe('goals', renderGoals);
   safe('prs', renderPrBoard);
   safe('route', () => { renderRoutePanel().catch((e) => console.error('route', e)); });
@@ -196,6 +199,178 @@ function renderKpis() {
        <div class="value">${c.value}${c.unit ? `<small>${c.unit}</small>` : ''}</div>
        <div class="foot">${c.foot}</div>`));
   });
+}
+
+/* ── COROS 컨디션 · 레이스 예측 ─────────────────────────────── */
+const COROS_LEVEL = {
+  Fresh: '완전 회복', Optimal: '최상', Good: '양호', Normal: '보통', Moderate: '보통',
+  Recovery: '회복 필요', Tired: '피로', Low: '낮음', High: '높음',
+};
+const COROS_COMMENT = {
+  Performance: '퍼포먼스 구간', Resuming: '복귀 구간', Decreasing: '부하 감소',
+  Maintaining: '유지 구간', Base: '기초 다지기', Overload: '과부하 주의', Recovery: '회복 구간',
+};
+const RACE_META = [
+  { key: '5k', label: '5K', km: 5 },
+  { key: '10k', label: '10K', km: 10 },
+  { key: 'half', label: '하프', km: 21.0975 },
+  { key: 'full', label: '풀', km: 42.195 },
+];
+const corosLevel = (s) => COROS_LEVEL[s] || s || '—';
+const corosComment = (s) => COROS_COMMENT[s] || s || '—';
+
+// 회복도·부하율 색: 좋음(청록) / 보통(주황) / 주의(빨강)
+function corosTone(pct) {
+  if (pct >= 70) return { key: 'good', color: '#0f9d7c' };
+  if (pct >= 40) return { key: 'mid', color: '#d98324' };
+  return { key: 'low', color: '#d2492a' };
+}
+function ratioTone(r) {
+  if (r == null) return { key: 'mid', color: '#7c8798', label: '—' };
+  if (r > 1.3) return { key: 'high', color: '#d2492a', label: '과부하 주의' };
+  if (r >= 0.8) return { key: 'good', color: '#0f9d7c', label: '균형 구간' };
+  return { key: 'low', color: '#3b6fd4', label: '부하 회복 구간' };
+}
+
+async function renderCoros() {
+  const panel = $('#corosPanel');
+  if (!panel) return;
+  let s = null;
+  try {
+    const res = await fetch(COROS_URL, { cache: 'no-cache' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    s = await res.json();
+  } catch (err) {
+    console.warn('COROS 데이터를 읽지 못했어요', err);
+    panel.hidden = true;
+    return;
+  }
+  if (!s || (!s.fitness && !s.recovery && !s.load)) { panel.hidden = true; return; }
+  state.coros = s;
+  panel.hidden = false;
+
+  const when = s.generated_at ? new Date(s.generated_at) : null;
+  if (when && !isNaN(when)) {
+    $('#corosWhen').textContent = `COROS 동기화 ${when.toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+  }
+
+  /* 회복도 링 */
+  const rec = s.recovery || {};
+  const pct = num(rec.recovery_pct);
+  const tone = corosTone(pct);
+  const rhr = (s.resting_hr || []).slice(-1)[0];
+  const hrv = (s.hrv || []).slice(-1)[0];
+  const recFoot = [
+    rhr ? `안정시 심박 ${rhr.bpm} bpm` : null,
+    hrv ? `HRV ${hrv.avg} ms (${hrv.status || '—'})` : null,
+  ].filter(Boolean).join(' · ');
+  $('#corosRecovery').innerHTML =
+    `<div class="coros-ring tone-${tone.key}" style="--pct:${Math.max(0, Math.min(100, pct))}; --ring:${tone.color}">
+       <b>${Math.round(pct)}<small>%</small></b>
+     </div>
+     <div class="coros-ring-text">
+       <div class="coros-ring-label">오늘 회복도</div>
+       <div class="coros-ring-level" style="color:${tone.color}">${esc(corosLevel(rec.level))}</div>
+       <div class="coros-ring-foot">${rec.full_recovery_h ? `완전 회복까지 ${rec.full_recovery_h}시간 · ` : ''}${esc(recFoot) || '—'}</div>
+     </div>`;
+
+  /* VO2max · 러닝 레벨 · 역치 페이스 */
+  const fit = s.fitness || {};
+  const thr = fit.threshold_pace ? String(fit.threshold_pace).replace(' /km', '') : null;
+  const stats = [
+    { label: 'VO2max', value: fit.vo2max != null ? Math.round(fit.vo2max) : '—', unit: 'ml/kg/min', foot: '유산소 능력' },
+    { label: '러닝 레벨', value: fit.running_level != null ? Math.round(fit.running_level) : '—', unit: '점', foot: 'COROS 체력 지수' },
+    { label: '역치 페이스', value: thr || '—', unit: thr ? '/km' : '', foot: '젖산 역치 기준' },
+  ];
+  $('#corosStats').innerHTML = stats.map((c) =>
+    `<div class="coros-stat">
+       <div class="cs-label">${c.label}</div>
+       <div class="cs-value">${c.value}${c.unit ? `<small>${c.unit}</small>` : ''}</div>
+       <div class="cs-foot">${c.foot}</div>
+     </div>`).join('');
+
+  /* 훈련 부하 */
+  const load = s.load_latest || (Array.isArray(s.load) ? s.load.slice(-1)[0] : null);
+  const lb = $('#corosLoadBox');
+  if (load) {
+    const rt = ratioTone(load.ratio);
+    const pos = Math.max(0, Math.min(100, (num(load.ratio) / 2) * 100));
+    lb.innerHTML =
+      `<div class="cl-head">훈련 부하 <span class="cl-date">${esc(load.date || '')}</span></div>
+       <div class="cl-nums">
+         <div><span>단기 (ATL)</span><b>${load.atl != null ? Math.round(load.atl) : '—'}</b></div>
+         <div><span>장기 (CTL)</span><b>${load.ctl != null ? Math.round(load.ctl) : '—'}</b></div>
+         <div><span>부하율</span><b style="color:${rt.color}">${load.ratio != null ? Number(load.ratio).toFixed(2) : '—'}</b></div>
+       </div>
+       <div class="cl-gauge" title="0.8~1.3이 균형 구간">
+         <i class="zg zg-low"></i><i class="zg zg-good"></i><i class="zg zg-high"></i>
+         <span class="cl-marker" style="left:${pos}%; background:${rt.color}"></span>
+       </div>
+       <div class="cl-foot"><b style="color:${rt.color}">${rt.label}</b> · COROS 진단 <b>${esc(corosComment(load.comment))}</b></div>`;
+  } else {
+    lb.innerHTML = '<div class="empty-state">훈련 부하 정보가 없어요.</div>';
+  }
+
+  /* 레이스 예측 */
+  const predBlock = $('#corosPredictBlock');
+  const preds = (fit.predictions) || {};
+  const cards = RACE_META.filter((r) => preds[r.key] && preds[r.key].text);
+  if (cards.length) {
+    predBlock.hidden = false;
+    $('#corosPredict').innerHTML = cards.map((r) => {
+      const sec = preds[r.key].seconds;
+      const pace = sec ? Math.round(sec / r.km) : null;
+      return `<div class="coros-pred">
+        <div class="cp-label">${r.label}</div>
+        <div class="cp-time">${esc(preds[r.key].text)}</div>
+        <div class="cp-pace">${pace ? `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}" /km` : '—'}</div>
+      </div>`;
+    }).join('');
+  } else {
+    predBlock.hidden = true;
+  }
+
+  /* 7일 부하 추이 */
+  const series = (Array.isArray(s.load) ? s.load : []).slice(-7);
+  const chartBlock = document.querySelector('.coros-chart-block');
+  if (series.length) {
+    if (chartBlock) chartBlock.hidden = false;
+    drawChart('chartCorosLoad', {
+      data: {
+        labels: series.map((r) => (r.date || '').slice(5).replace('-', '/')),
+        datasets: [
+          {
+            type: 'bar', label: '단기 부하 (ATL)', data: series.map((r) => r.atl),
+            backgroundColor: 'rgba(252,82,0,.75)', hoverBackgroundColor: '#fc5200',
+            borderRadius: 6, borderSkipped: false, yAxisID: 'y', order: 2,
+          },
+          {
+            type: 'line', label: '장기 부하 (CTL)', data: series.map((r) => r.ctl),
+            borderColor: '#3b6fd4', backgroundColor: '#3b6fd4', borderWidth: 2.5,
+            pointRadius: 3, pointHoverRadius: 5, tension: .35, spanGaps: true,
+            yAxisID: 'y', order: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { color: '#566173', boxWidth: 10, boxHeight: 10, font: CHART_FONT } },
+          tooltip: Object.assign({}, TOOLTIP, {
+            callbacks: {
+              afterBody: (items) => {
+                const r = series[items[0].dataIndex];
+                return r ? `부하율 ${r.ratio != null ? Number(r.ratio).toFixed(2) : '—'} · ${corosComment(r.comment)}` : '';
+              },
+            },
+          }),
+        },
+        scales: baseScales(),
+      },
+    });
+  } else if (chartBlock) {
+    chartBlock.hidden = true;
+  }
 }
 
 /* ── 목표 달성률 ───────────────────────────────────────────── */
@@ -1011,7 +1186,8 @@ function renderList() {
     return;
   }
   list.slice(0, state.shown).forEach((a) => {
-    const badge = a.sport && a.sport !== 'Run' ? `<span class="a-badge">${a.sport}</span>` : '';
+    const badge = (a.sport && a.sport !== 'Run' ? `<span class="a-badge">${a.sport}</span>` : '')
+      + (a.src === 'coros' ? '<span class="a-badge coros">COROS</span>' : '');
     const btn = el('button', 'act',
       `<span class="a-date"><b>${a.p.date.slice(5).replace('-', '/')}</b>${WEEKDAYS[a.weekday]} ${String(a.p.h).padStart(2, '0')}:${String(a.p.mi).padStart(2, '0')}</span>
        <span><span class="a-name">${a.name || '러닝'}${badge}</span>
@@ -1047,7 +1223,14 @@ async function openModal(a) {
 
   const dl = $('#modalStats');
   dl.innerHTML = stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
-  $('#modalStrava').href = `https://www.strava.com/activities/${a.id}`;
+  const stravaLink = $('#modalStrava');
+  if (a.src === 'coros') {
+    stravaLink.hidden = true;                 // COROS 에서 직접 들어온 기록은 Strava 링크가 없다
+  } else {
+    stravaLink.hidden = false;
+    stravaLink.textContent = 'Strava에서 이 활동 보기 ↗';
+    stravaLink.href = `https://www.strava.com/activities/${a.id}`;
+  }
   $('#modalDesc').hidden = !a.desc;
   $('#modalDesc').textContent = a.desc || '';
 

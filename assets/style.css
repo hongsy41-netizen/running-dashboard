@@ -340,11 +340,85 @@ code{background:var(--panel-2); border:1px solid var(--line-soft); border-radius
 .hr-stats{display:flex; flex-wrap:wrap; gap:6px 18px; margin-bottom:12px; font-size:12px; color:var(--text-dim)}
 .hr-stats b{color:var(--text); font-weight:750}
 
+/* ── COROS 컨디션 ──────────────────────────────────────────── */
+.coros-tag{
+  display:inline-block; vertical-align:middle; margin-left:7px; padding:1px 7px;
+  font-size:10px; font-weight:800; letter-spacing:.05em; border-radius:5px;
+  color:#0b6d8f; background:#e7f5fa; border:1px solid #cfe9f2;
+}
+.coros-when{font-size:11.5px; color:var(--text-faint); white-space:nowrap}
+.coros-hero{display:grid; grid-template-columns:1.05fr 1fr 1.15fr; gap:12px; align-items:stretch}
+
+.coros-recovery{
+  display:flex; align-items:center; gap:14px;
+  background:var(--panel-2); border:1px solid var(--line-soft); border-radius:14px; padding:14px 16px; min-width:0;
+}
+.coros-ring{
+  position:relative; width:76px; height:76px; flex:0 0 auto; border-radius:50%;
+  background:conic-gradient(var(--ring, #0f9d7c) calc(var(--pct, 0) * 1%), #e6eaf0 0);
+  display:grid; place-items:center;
+}
+.coros-ring::before{content:""; position:absolute; inset:7px; background:#fff; border-radius:50%; box-shadow:inset 0 0 0 1px var(--line-soft)}
+.coros-ring b{position:relative; font-size:20px; font-weight:800; letter-spacing:-.03em; line-height:1}
+.coros-ring b small{font-size:10.5px; font-weight:700; color:var(--text-dim); margin-left:1px}
+.coros-ring-text{min-width:0}
+.coros-ring-label{font-size:11.5px; color:var(--text-dim); font-weight:650}
+.coros-ring-level{font-size:17px; font-weight:800; letter-spacing:-.02em; margin:1px 0 3px}
+.coros-ring-foot{font-size:11px; color:var(--text-faint); line-height:1.4}
+
+.coros-stat-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:8px}
+.coros-stat{
+  background:var(--panel-2); border:1px solid var(--line-soft); border-radius:13px;
+  padding:11px 12px; min-width:0;
+}
+.cs-label{font-size:11px; color:var(--text-dim); font-weight:650; white-space:nowrap}
+.cs-value{font-size:19px; font-weight:800; letter-spacing:-.03em; margin-top:4px; line-height:1.15}
+.cs-value small{font-size:10px; font-weight:650; color:var(--text-faint); margin-left:2px}
+.cs-foot{font-size:10.5px; color:var(--text-faint); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+
+.coros-loadbox{
+  background:var(--panel-2); border:1px solid var(--line-soft); border-radius:14px; padding:13px 15px; min-width:0;
+}
+.cl-head{font-size:12.5px; font-weight:750; color:var(--text-dim); display:flex; justify-content:space-between; align-items:center; gap:8px}
+.cl-date{font-size:10.5px; font-weight:600; color:var(--text-faint)}
+.cl-nums{display:flex; gap:14px; margin:7px 0 9px; flex-wrap:wrap}
+.cl-nums div{display:flex; flex-direction:column; gap:1px}
+.cl-nums span{font-size:10.5px; color:var(--text-faint)}
+.cl-nums b{font-size:17px; font-weight:800; letter-spacing:-.02em; line-height:1.2}
+.cl-gauge{position:relative; display:flex; height:9px; border-radius:999px; overflow:hidden; background:#e6eaf0}
+.cl-gauge .zg{display:block; height:100%}
+.zg-low{width:40%; background:#dbe6f8}      /* 0 ~ 0.8 */
+.zg-good{width:25%; background:#d5efe7}     /* 0.8 ~ 1.3 */
+.zg-high{width:35%; background:#f8ddd6}     /* 1.3 ~ 2.0 */
+.cl-marker{
+  position:absolute; top:-3px; width:3px; height:15px; border-radius:2px;
+  transform:translateX(-1.5px); box-shadow:0 0 0 2px #fff;
+}
+.cl-foot{font-size:11px; color:var(--text-faint); margin-top:7px}
+.cl-foot b{font-weight:700}
+
+.coros-sub-head{margin:16px 0 10px}
+.coros-sub-head h3{font-size:13.5px; font-weight:750}
+.coros-predict-block[hidden], .coros-chart-block[hidden]{display:none}
+.coros-predict{display:grid; grid-template-columns:repeat(4, 1fr); gap:10px}
+.coros-pred{
+  background:linear-gradient(180deg, #fff, var(--panel-2));
+  border:1px solid var(--line); border-radius:13px; padding:12px 14px;
+  box-shadow:0 1px 2px rgba(16,24,40,.03); min-width:0;
+}
+.cp-label{font-size:11px; font-weight:800; color:#0b6d8f; background:#e7f5fa; border-radius:6px; padding:1px 7px; display:inline-block}
+.cp-time{font-size:23px; font-weight:800; letter-spacing:-.03em; margin-top:8px; line-height:1.1; white-space:nowrap}
+.cp-pace{font-size:12px; font-weight:650; color:var(--accent-2); margin-top:4px}
+.coros-chart-block{position:relative}
+.coros-chart{height:220px}
+
 /* ── 반응형 ───────────────────────────────────────────────── */
 @media (max-width: 980px){
   .kpi-grid{grid-template-columns:repeat(3, 1fr)}
   .two-col{grid-template-columns:1fr}
   .pr-grid{grid-template-columns:repeat(2, 1fr)}
+  .coros-hero{grid-template-columns:1fr 1fr}
+  .coros-loadbox{grid-column:1 / -1}
 }
 @media (max-width: 640px){
   .goal-grid{grid-template-columns:1fr}
@@ -367,6 +441,11 @@ code{background:var(--panel-2); border:1px solid var(--line-soft); border-radius
   .act .a-pace{grid-column:3; justify-self:end}
   .act .a-dist{grid-column:2; grid-row:2; text-align:left; font-size:13.5px}
   .act .a-meta{display:none}
+  .coros-hero{grid-template-columns:1fr}
+  .coros-stat-grid{grid-template-columns:repeat(3, 1fr)}
+  .coros-predict{grid-template-columns:repeat(2, 1fr)}
+  .cp-time{font-size:21px}
+  .coros-when{display:none}
   .gear-row{grid-template-columns:1fr auto}
   .gear-bar{grid-column:1 / -1; grid-row:2}
   .modal-card{padding:18px; border-radius:15px}

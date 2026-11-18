@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>서율아빠의 러닝 · Strava 대시보드</title>
-<meta name="description" content="Strava 러닝 기록을 한눈에 보는 개인 대시보드 — 누적 거리, 히트맵, 페이스 추이, 코스 지도">
+<title>서율아빠의 러닝 · Strava + COROS 대시보드</title>
+<meta name="description" content="Strava 러닝 기록과 COROS 컨디션(VO2max·레이스 예측·회복도·훈련 부하)을 한눈에 보는 개인 대시보드">
 <meta name="theme-color" content="#f5f6f8">
 <meta name="color-scheme" content="light">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏃</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="assets/style.css?v=14">
+<link rel="stylesheet" href="assets/style.css?v=15">
 </head>
 <body>
 
@@ -19,7 +19,7 @@
       <span class="brand-mark" aria-hidden="true">🏃</span>
       <div class="brand-text">
         <h1>서율아빠의 러닝</h1>
-        <p>Strava 러닝 기록 대시보드</p>
+        <p>Strava 기록 + COROS 컨디션 대시보드</p>
       </div>
     </div>
     <div class="header-meta">
@@ -34,6 +34,38 @@
   <section class="kpi-grid" id="kpi" aria-label="핵심 요약">
     <div class="kpi skeleton"></div><div class="kpi skeleton"></div><div class="kpi skeleton"></div>
     <div class="kpi skeleton"></div><div class="kpi skeleton"></div><div class="kpi skeleton"></div>
+  </section>
+
+  <section class="panel" id="corosPanel" hidden aria-label="COROS 컨디션과 레이스 예측">
+    <div class="panel-head">
+      <div>
+        <h2>COROS 컨디션 · 레이스 예측 <span class="coros-tag">COROS</span></h2>
+        <p class="sub">워치가 계산한 오늘의 회복도·체력·훈련 부하. 매일 아침 자동으로 갱신됩니다.</p>
+      </div>
+      <span class="coros-when" id="corosWhen"></span>
+    </div>
+
+    <div class="coros-hero">
+      <div class="coros-recovery" id="corosRecovery"></div>
+      <div class="coros-stat-grid" id="corosStats"></div>
+      <div class="coros-loadbox" id="corosLoadBox"></div>
+    </div>
+
+    <div class="coros-predict-block" id="corosPredictBlock">
+      <div class="coros-sub-head">
+        <h3>레이스 예측</h3>
+        <p class="sub">지금 체력이라면 이 정도. COROS 체력 평가 기준 예상 기록입니다.</p>
+      </div>
+      <div class="coros-predict" id="corosPredict"></div>
+    </div>
+
+    <div class="coros-chart-block">
+      <div class="coros-sub-head">
+        <h3>최근 7일 훈련 부하</h3>
+        <p class="sub">막대는 단기 부하(ATL), 선은 장기 부하(CTL). 두 값의 비율이 부하율입니다.</p>
+      </div>
+      <div class="chart-box coros-chart"><canvas id="chartCorosLoad" height="200"></canvas></div>
+    </div>
   </section>
 
   <section class="panel" id="goalsPanel" aria-label="목표 달성률">
@@ -170,7 +202,7 @@
 
 <footer class="site-footer">
   <div class="wrap">
-    <p>데이터 출처: <strong>Strava</strong> · 서율아빠 동작 · 저장소의 <code>data/activities.json</code>을 그대로 읽어 브라우저에서 그립니다.</p>
+    <p>데이터 출처: <strong>Strava</strong> 기록 + <strong>COROS</strong> 컨디션 · 서율아빠 동작 · 저장소의 <code>data/activities.json</code>·<code>data/coros-status.json</code>을 그대로 읽어 브라우저에서 그립니다.</p>
     <p class="muted" id="footerNote">지도 타일 © Esri · OpenStreetMap contributors · Strava 데이터는 Strava 이용약관에 따라 본인 기록만 표시합니다.</p>
   </div>
 </footer>
@@ -193,6 +225,6 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="assets/app.js?v=23"></script>
+<script src="assets/app.js?v=24"></script>
 </body>
 </html>
