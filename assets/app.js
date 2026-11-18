@@ -667,10 +667,10 @@ async function loadPoly(a) {
 function setupMap() {
   if (state.map) return;
   state.map = L.map('modalMap', { zoomControl: true, attributionControl: true, scrollWheelZoom: true });
-  // 라이트 테마에 맞는 밝은 지도 타일 (CartoDB Positron · OpenStreetMap 기반)
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd', maxZoom: 20,
-    attribution: '지도 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
+  // 라이트 테마에 맞는 밝은 지도 타일 (Esri Light Gray Canvas · 키 불필요)
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 16,
+    attribution: '지도 © Esri, HERE, Garmin, OpenStreetMap contributors',
   }).addTo(state.map);
   state.map.setView([37.5665, 126.9780], 12);
 }
