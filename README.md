@@ -6,6 +6,7 @@ Strava 기록을 한 장의 페이지로 보는 개인 러닝 대시보드입니
 
 - 라이브: https://hongsy41-netizen.github.io/running-dashboard/
 - 데이터: Strava 전체 기록 내보내기(archive) — 러닝 1,276개 (2019.04 ~ 2026.11), 누적 12,760.7km / 1,233시간
+- 컨디션: COROS 공식 MCP 동기화 — VO2max·러닝 레벨·역치 페이스·레이스 예측, 회복도, 단기/장기 훈련 부하, 안정시 심박, HRV (`data/coros-status.json`)
 - 지도: 그중 1,190개(93%)는 기기 FIT/GPX에서 뽑은 실제 GPS 트랙, 나머지는 실내 러닝이라 좌표 없음
 
 ## 화면에 담긴 것
@@ -13,6 +14,7 @@ Strava 기록을 한 장의 페이지로 보는 개인 러닝 대시보드입니
 | 영역 | 내용 |
 | --- | --- |
 | 핵심 지표 | 누적 거리·러닝 횟수·총 시간·평균 페이스·최장 거리·올해/이번 달 |
+| COROS 컨디션 | 오늘 회복도(링)·VO2max·러닝 레벨·역치 페이스, 훈련 부하(ATL/CTL/부하율)와 최근 7일 추이, 5K·10K·하프·풀 레이스 예측 |
 | 목표 달성률 | 올해(기본 3,000km)·이번 주(월~일, 기본 60km) 진행률. 숫자를 눌러 목표를 바꾸면 `localStorage`에 저장 |
 | 거리별 PR | 5K·10K·하프·풀 구간 최고 평균 페이스와 표준 거리 환산 시간, 카드 클릭 시 활동 상세 모달 |
 | 전체 코스 지도 | 연도별 GPS 경로를 한 장에 겹쳐 보기(전체 1,190개 / 연도별). 겹칠수록 진하게, 코스 수·합계 거리 요약 |
@@ -34,6 +36,7 @@ index.html               화면
 assets/style.css         라이트 테마 스타일
 assets/app.js            데이터 로딩·차트·히트맵·목록·모달
 data/activities.json     활동 요약 (러닝만)
+data/coros-status.json   COROS 컨디션 (체력·회복·부하·심박·HRV)
 data/polylines/<연도>.json   활동 id → 인코딩 polyline (지도용, 연도별로 지연 로딩)
 scripts/build_data.py    아카이브 CSV + polyline → data/*.json
 scripts/stream_archive.py 2.6GB 아카이브 zip을 저장하지 않고 스트리밍으로 필요한 것만 추출
@@ -70,7 +73,24 @@ git add data && git commit -m "chore: 데이터 갱신" && git push
 > Strava는 2026년 7월부터 **무료 계정의 API 호출을 제한**합니다. 현재 계정이
 > Free라서 이 경로는 구독 전환 전까지 403이 돌아옵니다.
 
-### 3) 매일 자동 동기화 — 웹 세션 쿠키
+### 3) 매일 자동 동기화 — COROS (현재 쓰는 경로)
+
+Strava 무료 계정 API 제한과 무관하게, COROS 공식 MCP에서 직접 기록과 컨디션을
+받아 옵니다. 토큰은 `/workspace/.secrets/coros-mcp-token.json`(refresh_token 포함)에 있고,
+스크립트가 만료 임박·401일 때 스스로 갱신합니다.
+
+```bash
+python3 work/coros-mcp/sync_dashboard.py --days 21 --push
+```
+
+- 기존 Strava 기록과는 시작 시각(±6분) + 거리(±200m)로 대조해 **중복을 만들지 않고** 병합합니다.
+  새 기록만 COROS `labelId`를 id로 쓰고 `src: "coros"` 표시가 붙습니다.
+- 새 기록은 FIT 파일을 받아 GPS polyline(기존 아카이브와 동일한 단순화)과 최대심박을 뽑고,
+  활동 상세에서 케이던스·훈련부하·유산소 효과를 채웁니다.
+- `data/coros-status.json`에 체력·회복·부하·심박·HRV를 저장합니다.
+- 스케줄: 매일 07:30 KST (`scheduled-actions/🏃-코로스-대시보드-자동-동기화`).
+
+### 4) 매일 자동 동기화 — 웹 세션 쿠키
 
 `STRAVA_COOKIE` 시크릿에 브라우저 개발자도구(Application → Cookies →
 `https://www.strava.com`)의 `_strava4_session=...` 값을 넣으면 웹 트레이닝 로그
